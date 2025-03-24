@@ -1,1 +1,50 @@
+package com.example;
 
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import org.lwjgl.glfw.GLFW;
+
+public class AutoTNTCartMod implements ModInitializer {
+    private static boolean enabled = false;
+    private static long lastPlaced = 0;
+    private static int delay = 1000; // Delay default
+
+    private static KeyBinding toggleKey;
+
+    @Override
+    public void onInitialize() {
+        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.autotntcart.toggle",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_G,
+                "category.autotntcart"
+        ));
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (toggleKey.wasPressed()) {
+                enabled = !enabled;
+                client.player.sendMessage(Text.literal("Auto TNT Cart: " + (enabled ? "ON" : "OFF")), false);
+            }
+
+            if (!enabled || client.player == null) return;
+            World world = client.player.getWorld();
+            BlockPos playerBlockPos = client.player.getBlockPos();
+
+            if (System.currentTimeMillis() - lastPlaced >= delay) {
+                for (BlockPos pos : BlockPos.iterate(playerBlockPos.add(-5, -5, -5), playerBlockPos.add(5, 5, 5))) {
+                    if (world.getBlockState(pos).getBlock() instanceof AbstractRailBlock) {
+                        world.setBlockState(pos.up(), Items.TNT_MINECART.getDefaultStack());
+                        lastPlaced = System.currentTimeMillis();
+                        break;
+                    }
+                }
+            }
+        });
+    }
+}
